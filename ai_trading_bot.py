@@ -97,6 +97,7 @@ def main() -> None:
     args = parse_args()
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
     # Configure logging to provide timestamped info
+        from telegram_utils import send_telegram_message
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info("Fetching market data for symbols %s in %s", symbols, args.currency)
     market_data = fetch_market_data(symbols, args.currency)
@@ -122,6 +123,18 @@ def main() -> None:
 
     # Print final action for user reference
     print("Action:", action)
+    # Send trade notification via Telegram
+    message_lines = [f"Trading signal: {action.upper()}"]
+    for symbol in symbols:
+        price = market_data[symbol][args.currency]
+        tp, sl = calculate_trade_levels(price, args.tp, args.sl)
+        message_lines.append(f"{symbol.upper()} {price:.2f} {args.currency}, TP {tp:.2f}, SL {sl:.2f}")
+    message = "\n".join(message_lines)
+    try:
+        send_telegram_message(message)
+    except Exception as e:
+        logging.error("Failed to send Telegram notification: %s", e)
+
 
 
 if __name__ == "__main__":
