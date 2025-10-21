@@ -1,0 +1,23 @@
+name: Run AI Trading Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run trading bot
+        env:
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          MODEL_API_URL: ${{ secrets.MODEL_API_URL }}
+          MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+        run: python ai_trading_bot.py
