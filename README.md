@@ -8,6 +8,7 @@
 - Calculates take-profit and stop-loss levels based on configurable percentages.
 - - Computes 7-day simple moving averages from historical prices for additional context.
 - Logs trade decisions with price, moving average, and levels to console and optionally to a file.
+-  upports multiple AI models (default, OpenAI, HuggingFace) using environment variables and the new `model_utils` module.
 - Includes an enhanced script `ai_trading_bot_enhanced.py` with these features and improved CLI options.
 
 
@@ -21,6 +22,7 @@
    ```bash
    pip install -r requirements.txt
    ```
+
 
 ## Configuration
 Before running the bot, set the following environment variables (optional):
