@@ -6,6 +6,10 @@
 - Fetches news headlines and passes them to the model for sentiment or signal analysis.
 - Generates trade signals (buy, sell, or hold) with confidence scores.
 - Calculates take-profit and stop-loss levels based on configurable percentages.
+- - Computes 7-day simple moving averages from historical prices for additional context.
+- Logs trade decisions with price, moving average, and levels to console and optionally to a file.
+- Includes an enhanced script `ai_trading_bot_enhanced.py` with these features and improved CLI options.
+
 
 ## Requirements
 - Python 3.8+
