@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 AI-driven trading bot script.
-This script fetches market data and news, calls an AI model via API to get trading signals,
-and calculates take-profit and stop-loss levels.
+
+This script fetches market data and news, calls an AI model via API to get trading signals, and
+calculates take-profit and stop-loss levels.
 
 Use CLI arguments to specify symbol(s), currency, and profit/loss percentages.
 See README for details.
@@ -18,12 +19,16 @@ import config  # custom config file with default values
 
 
 def fetch_market_data(symbols: List[str], currency: str) -> Dict[str, Dict[str, float]]:
-    """Fetch cryptocurrency market data from CoinGecko API for given symbols."""
+    """Fetch cryptocurrency market data from CoinGecko API for given symbols and currency."""
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": ",".join(symbols), "vs_currencies": currency}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error("Failed to fetch market data: %s", e)
+        return {}
 
 
 def fetch_news(limit: int = 5) -> List[str]:
@@ -32,11 +37,15 @@ def fetch_news(limit: int = 5) -> List[str]:
     if not api_key:
         return []
     url = "https://cryptonews-api.com/api/v1/category"
-    params = {"section": "general", "items": limit, "apiKey": api_key}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
-    return [article.get("title", "") for article in data.get("data", [])]
+    params = {"section": "general", "items": limit, "apikey": api_key}
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return [article.get("title", "") for article in data.get("data", [])]
+    except requests.exceptions.RequestException as e:
+        logging.error("Failed to fetch news: %s", e)
+        return []
 
 
 def analyze_with_model(market_data: Dict[str, Dict[str, float]], news: List[str]) -> str:
@@ -47,10 +56,14 @@ def analyze_with_model(market_data: Dict[str, Dict[str, float]], news: List[str]
         return "hold"
     payload = {"market_data": market_data, "news": news}
     headers = {"Authorization": f"Bearer {model_key}", "Content-Type": "application/json"}
-    response = requests.post(model_url, json=payload, headers=headers, timeout=10)
-    response.raise_for_status()
-    result = response.json()
-    return result.get("action", "hold")
+    try:
+        response = requests.post(model_url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        return result.get("action", "hold")
+    except requests.exceptions.RequestException as e:
+        logging.error("Failed to call model API: %s", e)
+        return "hold"
 
 
 def calculate_trade_levels(price: float, action: str, tp_pct: float, sl_pct: float) -> Tuple[float, float]:
@@ -97,19 +110,15 @@ def main() -> None:
     args = parse_args()
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
     # Configure logging to provide timestamped info
-        from telegram_utils import send_telegram_message
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info("Fetching market data for symbols %s in %s", symbols, args.currency)
     market_data = fetch_market_data(symbols, args.currency)
     logging.info("Market data: %s", market_data)
-
     news = fetch_news()
     if news:
         logging.info("Latest news headlines: %s", news)
-
     action = analyze_with_model(market_data, news)
     logging.info("AI model action: %s", action)
-
     for symbol in symbols:
         price = market_data[symbol][args.currency]
         take_profit, stop_loss = calculate_trade_levels(price, action, args.tp, args.sl)
@@ -120,21 +129,20 @@ def main() -> None:
             take_profit,
             stop_loss,
         )
-
     # Print final action for user reference
     print("Action:", action)
     # Send trade notification via Telegram
     message_lines = [f"Trading signal: {action.upper()}"]
     for symbol in symbols:
         price = market_data[symbol][args.currency]
-        tp, sl = calculate_trade_levels(price, args.tp, args.sl)
+        tp, sl = calculate_trade_levels(price, action, args.tp, args.sl)
         message_lines.append(f"{symbol.upper()} {price:.2f} {args.currency}, TP {tp:.2f}, SL {sl:.2f}")
     message = "\n".join(message_lines)
     try:
+        from telegram_utils import send_telegram_message
         send_telegram_message(message)
     except Exception as e:
         logging.error("Failed to send Telegram notification: %s", e)
-
 
 
 if __name__ == "__main__":
